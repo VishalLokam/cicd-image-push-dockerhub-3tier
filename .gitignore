@@ -1,3 +1,5 @@
+DOCKERHUB_USERNAME*
+
 # Logs
 logs
 *.log

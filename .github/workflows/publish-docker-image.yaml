@@ -1,0 +1,34 @@
+name: Publish Docker image
+run-name: ${{ github.actor }} pushed an image to dockerhub
+on: 
+    push:
+      branches:
+        - main
+jobs:
+    Push-to-registry:
+        name: Push docker images to registry
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout the repo
+              uses: actions/checkout@v4
+            
+            - name: Login into Docker Hub
+              uses: docker/login-action@v3
+              with:
+                username: ${{ secrets.DOCKERHUB_USERNAME }}
+                password: ${{ secrets.DOCKERHUB_PASSWORD }}
+            
+            - name: Extract metadata (tags, labels) for Docker
+              id: metadata
+              uses: docker/metadata-action@v5
+              with:
+                images: vishallokam/three-tier-frontend
+
+            - name: Build and push Docker image
+              uses: docker/build-push-action@v5
+              with: 
+                context: ../frontend
+                file: ./Docker
+                push: true
+                tags: ${{ steps.metadata.outputs.tags }}
+                labels: ${{ steps.metadata.outputs.labels }}
