@@ -1,9 +1,8 @@
 name: Publish Docker image
 run-name: ${{ github.actor }} pushed an image to dockerhub
 on: 
-    push:
-      branches:
-        - main
+  release:
+    types: [published]
 jobs:
     Push-to-registry:
         name: Push docker images to registry
