@@ -1,9 +1,8 @@
 name: Publish Docker image
 run-name: ${{ github.actor }} pushed an image to dockerhub
 on: 
-  push:
-    branches:
-      - main
+  release:
+    types: [published]
 jobs:
     Push-to-registry:
         name: Push docker images to registry
@@ -23,8 +22,6 @@ jobs:
               uses: docker/metadata-action@v5
               with:
                 images: vishallokam/three-tier-frontend
-                tags: |
-                  type=raw,value=latest,enable={{is_default_branch}}
 
             - name: Build and push Docker image
               uses: docker/build-push-action@v5
