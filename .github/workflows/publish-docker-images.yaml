@@ -9,6 +9,8 @@ jobs:
     Push-fontend-image-to-registry:
         name: Push frontend docker images to registry
         runs-on: ubuntu-latest
+        permissions:
+          pull-requests: write
         steps:
             - name: Checkout the repo
               uses: actions/checkout@v4
@@ -50,10 +52,40 @@ jobs:
                 cache-to: type=gha,mode=max
                 platforms: linux/amd64,linux/arm64,linux/arm/v7
 
+            - name: Find comment for image tags
+              uses: peter-evans/find-comment@v2
+              if: github.event_name == 'pull_request'
+              id: fc
+              with:
+                issue-number: ${{ github.event.pull_request.number }}
+                comment-author: 'github-actions[bot]'
+                body-includes: Docker image tag(s) pushed
+              
+                # If PR, put image tags in the PR comments
+            - name: Create or update comment for image tags
+              uses: peter-evans/create-or-update-comment@v3
+              if: github.event_name == 'pull_request'
+              with:
+                comment-id: ${{ steps.fc.outputs.comment-id }}
+                issue-number: ${{ github.event.pull_request.number }}
+                body: |
+                  Docker image tag(s) pushed:
+                  ```text
+                  ${{ steps.frontend-metadata.outputs.tags }}
+                  ```
+        
+                  Labels added to images:
+                  ```text
+                  ${{ steps.frontend-metadata.outputs.labels }}
+                  ```
+                edit-mode: replace
+
 
     Push-backend-image-to-registry:
         name: Push backend docker image to registry
         runs-on: ubuntu-latest
+        permissions:
+          pull-requests: write
         steps:
           - name: Checkout repository
             uses: actions/checkout@v4
@@ -94,3 +126,29 @@ jobs:
               cache-from: type=gha
               cache-to: type=gha,mode=max
               platforms: linux/amd64,linux/arm64,linux/arm/v7
+
+          - name: Find comment for image tag
+            uses: peter-evans/find-comment@v2
+            if: github.event_name == 'pull_request'
+            id: bc
+            with: 
+              issue-number: ${{ github.event.pull_request.number }}
+              comment-author: 'github-actions[bot]'
+              body-includes: Docker image tag(s) pushed
+
+          - name: Create or update comment for image tag
+            uses: peter-evans/create-or-update-comment@v3
+            if: github.event_name == 'pull_request'
+            with:
+              comment-id: ${{ steps.bc.outputs.comment-id }}
+              issue-number: $${{ github.event.pull_request.number }}
+              body: |
+                Docker image tag(s) pushed:
+                  ```text
+                  ${{ steps.backend-metadata.outputs.tags }}
+                  ```
+                Labels added to images:
+                  ```text
+                  ${{ steps.backend-metadata.outputs.labels }}
+                  ```
+              edit-mode: replace
