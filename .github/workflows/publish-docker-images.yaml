@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - v*.*.*
-
   pull_request:
 jobs:
     Push-fontend-image-to-registry:
@@ -27,20 +24,13 @@ jobs:
               uses: docker/metadata-action@v5
               with:
                 images: vishallokam/three-tier-frontend
-                tags:
-                  type=ref,event=branch
-                  type=ref,event=pr
-                  type=semver,pattern={{version}}
-                  type=semver,pattern={{major}}.{{minor}}
-                  type=semver,pattern={{major}}
 
             - name: Build and push Docker image
               uses: docker/build-push-action@v5
               with: 
                 context: frontend
                 push: ${{ github.event_name != 'pull_request' }}
-                tags: ${{ steps.frontend-metadata.outputs.tags }}
-                labels: ${{ steps.frontend-metadata.outputs.labels }}
+                tags: vishallokam/three-tier-frontend:latest,vishallokam/three-tier-frontend:1.0
 
 
     Push-backend-image-to-registry:
@@ -61,17 +51,10 @@ jobs:
             uses: docker/metadata-action@v5
             with:
               images: vishallokam/three-tier-backend
-              tags:
-                type=ref,event=branch
-                type=ref,event=pr
-                type=semver,pattern={{version}}
-                type=semver,pattern={{major}}.{{minor}}
-                type=semver,pattern={{major}}
 
           - name: Build and push docker image
             uses: docker/build-push-action@v5
             with:
               context: backend
               push: ${{ github.event_name != 'pull_request' }}
-              tags: ${{ steps.backend-metadata.outputs.tags }}
-              labels: ${{ steps.backend-metadata.outputs.labels }}
+              tags: vishallokam/three-tier-backend:latest,vishallokam/three-tier-backend:1.0
