@@ -37,7 +37,7 @@ jobs:
                   type=raw,value=latest,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
                   type=ref,event=pr
                   type=ref,event=branch
-                  type=semver,patter={{version}}
+                  type=semver,pattern={{version}}
 
             - name: Build and push Docker image
               uses: docker/build-push-action@v5
@@ -45,8 +45,7 @@ jobs:
                 context: frontend
                 push: true
                 tags: ${{ steps.frontend-metadata.outputs.tags }}
-                labels: ${{ steps.frontend-metadata.outputs.labels
-                 }}
+                labels: ${{ steps.frontend-metadata.outputs.labels}}
                 cache-from: type=gha
                 cache-to: type=gha,mode=max
                 platforms: linux/amd64,linux/arm64,linux/arm/v7
