@@ -76,7 +76,7 @@ jobs:
             with:
               images: vishallokam/three-tier-backend
               flavor: |
-                lates=false
+                latest=false
               tags: |
                 type=raw,value=04
                 type=raw,value=lates,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
