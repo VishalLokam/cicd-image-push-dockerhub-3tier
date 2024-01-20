@@ -1,8 +1,13 @@
 name: Publish Docker image
 run-name: ${{ github.actor }} pushed an image to dockerhub
 on: 
-  release:
-    types: [published]
+  push:
+    branches:
+      - main
+    tags:
+      - v*.*.*
+
+  pull_request:
 jobs:
     Push-fontend-image-to-registry:
         name: Push frontend docker images to registry
@@ -22,12 +27,16 @@ jobs:
               uses: docker/metadata-action@v5
               with:
                 images: vishallokam/three-tier-frontend
+                tags:
+                  type=semver,pattern={{version}}
+                  type=semver,pattern={{major}}.{{minor}}
+                  type=semver,pattern={{major}}
 
             - name: Build and push Docker image
               uses: docker/build-push-action@v5
               with: 
                 context: frontend
-                push: true
+                push: ${{ github.event_name != 'pull_request' }}
                 tags: ${{ steps.frontend-metadata.outputs.tags }}
                 labels: ${{ steps.frontend-metadata.outputs.labels }}
 
@@ -50,11 +59,15 @@ jobs:
             uses: docker/metadata-action@v5
             with:
               images: vishallokam/three-tier-backend
+              tags:
+                type=semver,pattern={{version}}
+                type=semver,pattern={{major}}.{{minor}}
+                type=semver,pattern={{major}}
 
           - name: Build and push docker image
             uses: docker/build-push-action@v5
             with:
               context: backend
-              push: true
+              push: ${{ github.event_name != 'pull_request' }}
               tags: ${{ steps.backend-metadata.outputs.tags }}
               labels: ${{ steps.backend-metadata.outputs.labels }}
