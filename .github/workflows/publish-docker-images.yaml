@@ -13,6 +13,9 @@ jobs:
             - name: Checkout the repo
               uses: actions/checkout@v4
 
+            - name: Set up QEMU
+              uses: docker/setup-qemu-action@v3
+
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
             
@@ -27,15 +30,26 @@ jobs:
               uses: docker/metadata-action@v5
               with:
                 images: vishallokam/three-tier-frontend
+                flavor: |
+                  latest=false
+                tags: |
+                  type=raw,value=04
+                  type=raw,value=latest,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
+                  type=ref,event=pr
+                  type=ref,event=branch
+                  type=semver,patter={{version}}
 
             - name: Build and push Docker image
               uses: docker/build-push-action@v5
               with: 
                 context: frontend
-                push: ${{ github.event_name != 'pull_request' }}
-                tags: vishallokam/three-tier-frontend:latest,vishallokam/three-tier-frontend:1.1
+                push: true
+                tags: ${{ steps.frontend-metadata.outputs.tags }}
+                labels: ${{ steps.frontend-metadata.outputs.labels
+                 }}
                 cache-from: type=gha
                 cache-to: type=gha,mode=max
+                platforms: linux/amd64,linux/arm64,linux/arm/v7
 
 
     Push-backend-image-to-registry:
@@ -44,6 +58,9 @@ jobs:
         steps:
           - name: Checkout repository
             uses: actions/checkout@v4
+
+          - name: Set up QEMU
+            uses: docker/setup-qemu-action@v3
 
           - name: Set up Docker Buildx
             uses: docker/setup-buildx-action@v3
@@ -59,12 +76,20 @@ jobs:
             uses: docker/metadata-action@v5
             with:
               images: vishallokam/three-tier-backend
+              flavor: |
+                type=raw,value=04
+                type=raw,value=lates,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
+                type=ref,event=pr
+                type=ref,event=branch
+                type=semver,pattern={{version}}
 
           - name: Build and push docker image
             uses: docker/build-push-action@v5
             with:
               context: backend
-              push: ${{ github.event_name != 'pull_request' }}
-              tags: vishallokam/three-tier-backend:latest,vishallokam/three-tier-backend:1.1
+              push: true
+              tags: ${{ steps.backend-metadata.outputs.tags }}
+              labels: ${{ steps.backend-metadata.outputs.labels }}
               cache-from: type=gha
               cache-to: type=gha,mode=max
+              platforms: linux/amd64,linux/arm64,linux/arm/v7
