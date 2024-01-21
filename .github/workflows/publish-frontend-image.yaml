@@ -30,6 +30,7 @@ jobs:
             - name: Build and export to Docker
               uses: docker/build-push-action@v3
               with:
+                context: frontend
                 push: false
                 load: true # Export to docker engine instead of registry
                 tags: ${{ github.run_id }}
