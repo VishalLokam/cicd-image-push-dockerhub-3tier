@@ -1,5 +1,5 @@
-name: Publish Docker image
-run-name: ${{ github.actor }} pushed an image to dockerhub
+name: Publish Frontend Docker image
+run-name: ${{ github.actor }} pushed a frontend image to dockerhub
 on: 
   push:
     branches:
