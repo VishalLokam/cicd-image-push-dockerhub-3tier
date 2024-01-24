@@ -34,6 +34,7 @@ jobs:
         - name: Build and Push to GHCR
           uses: docker/build-push-action@v5
           with:
+            context: frontend
             push: true
             tags: ghcr.io/vishallokam/frontend:${{ github.run_id }}
             cache-from: type=gha
