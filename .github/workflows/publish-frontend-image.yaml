@@ -11,6 +11,8 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
           pull-requests: write
+          contents: read
+          security-events: write
         steps:
             - name: Checkout the repo
               uses: actions/checkout@v4
@@ -27,7 +29,7 @@ jobs:
                 username: ${{ secrets.DOCKERHUB_USERNAME }}
                 password: ${{ secrets.DOCKERHUB_PASSWORD }}
             
-            - name: Build and export to Docker
+            - name: Build and export to Docker engine
               uses: docker/build-push-action@v3
               with:
                 context: frontend
@@ -38,13 +40,32 @@ jobs:
                 cache-to: type=gha,mode=max
                 platforms: linux/amd64
             
-            # CVE Scan
-            - name: Run trivy on all CVEs(non blocking)\
+            # CVE Scan non blocking
+            - name: Run trivy on all CVEs(non blocking)
               uses: aquasecurity/trivy-action@master
               with:
                 image-ref: ${{ github.run_id }}
                 exit-code: 0
                 format: table
+
+            # CVE Scan blocking
+            - name: Run Trivy for HIGH,CRITICAL CVEs and report (blocking)
+              uses: aquasecurity/trivy-action@master
+              with:
+                image-ref: ${{ github.run_id }}
+                exit-code: 1
+                ignore-unfixed: true
+                vuln-type: 'os,library'
+                severity: 'HIGH,CRITICAL'
+                format: 'sarif'
+                output: 'trivy-results.sarif'
+            
+            # Upload trivy scan results to github security tab
+            - name: Upload Trivy scan results to GitHub Security tab
+              uses: github/codeql-action/upload-sarif@v3
+              if: always()
+              with:
+                sarif_file: 'trivy-results.sarif'
             
             - name: Extract metadata (tags, labels) for final image build
               id: frontend-metadata
@@ -54,7 +75,7 @@ jobs:
                 flavor: |
                   latest=false
                 tags: |
-                  type=raw,value=06
+                  type=raw,value=07
                   # type=raw,value=latest,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
                   # type=ref,event=pr
                   # type=ref,event=branch
