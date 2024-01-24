@@ -68,6 +68,11 @@ jobs:
               if: always()
               with:
                 sarif_file: 'trivy-results.sarif'
+
+            # for simple tests (npm test, etc.) just run a local image in docker
+            - name: Unit Testing in Docker
+              run: |
+                docker container run --rm ${{ github.run_id }} echo "run test commands here"
             
             - name: Extract metadata (tags, labels) for final image build
               id: frontend-metadata
