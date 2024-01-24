@@ -7,7 +7,7 @@ on:
   pull_request:
 jobs:
     # Build test image
-    Build-test-image:
+    build-test-image:
       name: Build images for testing
       runs-on: ubuntu-latest
       permissions:
@@ -47,10 +47,10 @@ jobs:
             platforms: linux/amd64
 
     # Run unit tests on the test image
-    Unit-tests:
+    unit-tests:
       name: Unit tests in Docker
       runs-on: ubuntu-latest
-      needs: [Build-test-image]
+      needs: [build-test-image]
 
       permissions:
         packages: read
@@ -70,7 +70,7 @@ jobs:
     CVE-scan-image:
       name: Scan Image using Trivy
       runs-on: ubuntu-latest
-      needs: [Build-test-image]
+      needs: [build-test-image]
       permissions:
         contents: read
         packages: read
@@ -89,6 +89,61 @@ jobs:
             image-ref: ghcr.io/vishallokam/frontend:${{ github.run_id }}
             format: table
             exit-code: 0
+
+    # Build final image
+    build-final-image:
+      name: Build Final Image
+      runs-on: ubuntu-latest
+      needs: [build-test-image,unit-tests,CVE-scan-image]
+      permissions:
+        packages: write
+        pull-requests: write
+      steps:
+        - name: Checkout repo code
+          uses: actions/checkout@v4
+
+        - name: Set up QEMU
+          uses: docker/setup-qemu-action@v3
+
+        - name: Setup buildx
+          uses: docker/setup-buildx-action@v3
+
+        - name: Login docker hub
+          uses: docker/login-action@v3
+          with:
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+        - name: Login ghcr.io
+          uses: docker/login-action@v3
+          with:
+            username: ${{ github.actor }}
+            password: ${{ secrets.GITHUB_TOKEN }}
+        
+        # Docker metadata
+        - name: Docker metadata for final image build
+          id: docker_metadata
+          uses: docker/metadata-action@v5
+          with:
+            images: vishallokam/three-tier-frontend,ghcr.io/vishallokam/frontend
+            flavor: |
+              latest=false
+            tags: |
+              type=raw.value=99
+
+        # Docker build and push image to GHCR and Docker hub
+        - name: Build image and push to GHCR and docker hub
+          uses: docker/build-push-action@v5
+          with:
+            push: true
+            tags: ${{ steps.docker_metadata.outputs.tags }}
+            labels: ${{ steps.docker_metadata.outputs.tags }}
+            cache-from: type=gha
+            cache-to: type=gha,mode=max
+            platforms: linux/amd64,linux/arm64,linux/arm/v7
+          
+
+
 
 
 
