@@ -79,7 +79,7 @@ jobs:
               uses: docker/build-push-action@v5
               with:
                 push: true
-                tags: ghcr.io/VishalLokam/frontend:${{ github.run_id }}
+                tags: ghcr.io/vishallokam/frontend:${{ github.run_id }}
                 cache-from: type=gha
                 cache-to: type=gha,mode=max
                 platforms: linux/amd64
