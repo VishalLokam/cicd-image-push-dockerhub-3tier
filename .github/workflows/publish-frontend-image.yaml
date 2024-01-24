@@ -130,7 +130,7 @@ jobs:
             flavor: |
               latest=false
             tags: |
-              type=raw.value=99
+              type=raw,value=99
 
         # Docker build and push image to GHCR and Docker hub
         - name: Build image and push to GHCR and docker hub
