@@ -136,6 +136,7 @@ jobs:
         - name: Build image and push to GHCR and docker hub
           uses: docker/build-push-action@v5
           with:
+            context: frontend
             push: true
             tags: ${{ steps.docker_metadata.outputs.tags }}
             labels: ${{ steps.docker_metadata.outputs.tags }}
