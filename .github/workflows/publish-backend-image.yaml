@@ -6,74 +6,140 @@ on:
       - main
   pull_request:
 jobs:
-    Push-backend-image-to-registry:
-        name: Push backend docker image to registry
-        runs-on: ubuntu-latest
-        permissions:
-          pull-requests: write
-        steps:
-          - name: Checkout repository
-            uses: actions/checkout@v4
+    # Build test image
+    build-test-image:
+      name: Build images for testing
+      runs-on: ubuntu-latest
+      permissions:
+        packages: write
+        contents: read
+      steps: 
+        - name: Checkout the repo
+          uses: actions/checkout@v4
 
-          - name: Set up QEMU
-            uses: docker/setup-qemu-action@v3
+        - name: Set up Docker Buildx
+          uses: docker/setup-buildx-action@v3
+          
+        # Login into docker hub
+        - name: Login into Docker Hub
+          uses: docker/login-action@v3
+          with:
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_PASSWORD }}
 
-          - name: Set up Docker Buildx
-            uses: docker/setup-buildx-action@v3
+        # Login into ghcr.io
+        - name: Login into github container registry
+          uses: docker/login-action@v3
+          with:
+            registry: ghcr.io
+            username: ${{ github.actor }}
+            password: ${{ secrets.GITHUB_TOKEN }}
 
-          - name: Login into Docker hub
-            uses: docker/login-action@v3
-            with: 
-              username: ${{ secrets.DOCKERHUB_USERNAME }}
-              password: ${{ secrets.DOCKERHUB_PASSWORD }}
+        # Push image to ghcr.io
+        - name: Build and Push to GHCR
+          uses: docker/build-push-action@v5
+          with:
+            context: backend
+            push: true
+            tags: ghcr.io/vishallokam/backend:${{ github.run_id }}
+            cache-from: type=gha
+            cache-to: type=gha,mode=max
+            platforms: linux/amd64
 
-          - name: Extract metadata for Docker
-            id: backend-metadata
-            uses: docker/metadata-action@v5
-            with:
-              images: vishallokam/three-tier-backend
-              flavor: |
-                latest=false
-              tags: |
-                type=raw,value=04
-                type=raw,value=lates,enable=${{ endsWith(github.ref, github.event.repository.default_branch) }}
-                type=ref,event=pr
-                type=ref,event=branch
-                type=semver,pattern={{version}}
+    # Run unit tests on the test image
+    unit-tests:
+      name: Unit tests in Docker
+      runs-on: ubuntu-latest
+      needs: [build-test-image]
 
-          - name: Build and push docker image
-            uses: docker/build-push-action@v5
-            with:
-              context: backend
-              push: true
-              tags: ${{ steps.backend-metadata.outputs.tags }}
-              labels: ${{ steps.backend-metadata.outputs.labels }}
-              cache-from: type=gha
-              cache-to: type=gha,mode=max
-              platforms: linux/amd64,linux/arm64,linux/arm/v7
+      permissions:
+        packages: read
 
-          - name: Find comment for image tag
-            uses: peter-evans/find-comment@v2
-            if: github.event_name == 'pull_request'
-            id: bc
-            with: 
-              issue-number: ${{ github.event.pull_request.number }}
-              comment-author: 'github-actions[bot]'
-              body-includes: Docker image tag(s) pushed
+      steps:
+        - name: Login to ghcr.io registry
+          uses: docker/login-action@v3
+          with:
+            registry: ghcr.io
+            username: ${{ github.actor }}
+            password: ${{ secrets.GITHUB_TOKEN }}
 
-          - name: Create or update comment for image tag
-            uses: peter-evans/create-or-update-comment@v3
-            if: github.event_name == 'pull_request'
-            with:
-              comment-id: ${{ steps.bc.outputs.comment-id }}
-              issue-number: $${{ github.event.pull_request.number }}
-              body: |
-                Docker image tag(s) pushed:
-                  ```text
-                  ${{ steps.backend-metadata.outputs.tags }}
-                  ```
-                Labels added to images:
-                  ```text
-                  ${{ steps.backend-metadata.outputs.labels }}
-                  ```
-              edit-mode: replace
+        - name: Unit testing in Docker
+          run: docker container run --rm ghcr.io/vishallokam/backend:"$GITHUB_RUN_ID" echo "run test commands here"
+    
+    # CVE scanning using Trivy
+    CVE-scan-image:
+      name: Scan Image using Trivy
+      runs-on: ubuntu-latest
+      needs: [build-test-image]
+      permissions:
+        contents: read
+        packages: read
+        security-events: write
+
+      steps:
+        - name: Checkout the repo
+          uses: actions/checkout@v4
+
+        - name: Login into ghcr.io to fetch image
+          run: docker image pull ghcr.io/vishallokam/backend:"$GITHUB_RUN_ID"
+        
+        - name: Run Trivy scanner
+          uses: aquasecurity/trivy-action@master
+          with:
+            image-ref: ghcr.io/vishallokam/backend:${{ github.run_id }}
+            format: table
+            exit-code: 0
+
+    # Build final image
+    build-final-image:
+      name: Build Final Image
+      runs-on: ubuntu-latest
+      needs: [build-test-image,unit-tests,CVE-scan-image]
+      permissions:
+        packages: write
+        pull-requests: write
+      steps:
+        - name: Checkout repo code
+          uses: actions/checkout@v4
+
+        - name: Set up QEMU
+          uses: docker/setup-qemu-action@v3
+
+        - name: Setup buildx
+          uses: docker/setup-buildx-action@v3
+
+        - name: Login docker hub
+          uses: docker/login-action@v3
+          with:
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+        - name: Login ghcr.io
+          uses: docker/login-action@v3
+          with:
+            registry: ghcr.io
+            username: ${{ github.actor }}
+            password: ${{ secrets.GITHUB_TOKEN }}
+        
+        # Docker metadata
+        - name: Docker metadata for final image build
+          id: docker_metadata
+          uses: docker/metadata-action@v5
+          with:
+            images: vishallokam/three-tier-backend,ghcr.io/vishallokam/backend
+            flavor: |
+              latest=false
+            tags: |
+              type=raw,value=99
+
+        # Docker build and push image to GHCR and Docker hub
+        - name: Build image and push to GHCR and docker hub
+          uses: docker/build-push-action@v5
+          with:
+            context: fronbackendtend
+            push: true
+            tags: ${{ steps.docker_metadata.outputs.tags }}
+            labels: ${{ steps.docker_metadata.outputs.tags }}
+            cache-from: type=gha
+            cache-to: type=gha,mode=max
+            platforms: linux/amd64,linux/arm64,linux/arm/v7
